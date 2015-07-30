@@ -15,6 +15,22 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
+/* local mods
+the following modes are included by #define Z_SERVO
+to give parameters for a servo that moves a z-stop switch into position
+below the hothead.
+
+M50 Servo Out
+M51 Servo In
+M52 z-probe servo position, S has pulse duration in microsecond
+thermistor table1 edited to match Melzi table but with 4.7k pullup
+The following mods are included by #define NEW_ZSTOP_CODE in configuration.h
+M53 virtual z reporting
+M114 Extra decimal places on position reporting
+debounce z stop
+ 
+*********/
+
 /*
   This firmware is a mashup between Sprinter, grbl and parts from marlin.
   (https://github.com/kliment/Sprinter)
@@ -86,7 +102,7 @@
 - Add info to GEN7 Pins
 - Update pins.h for gen7, working setup for 20MHz
 - calculate feedrate without extrude before planner block is set
-- New Board --> GEN7 @ 20 Mhz …
+- New Board --> GEN7 @ 20 Mhz �
 - ENDSTOPS_ONLY_FOR_HOMING Option ignore Endstop always --> fault is cleared
 
  Version 1.3.11T
@@ -120,7 +136,7 @@
 - G4 Wait until last move is done
 
  Version 1.3.18T
-- Problem with Thermistor 3 table when sensor is broken and temp is -20 °C
+- Problem with Thermistor 3 table when sensor is broken and temp is -20 �C
 
  Version 1.3.19T
 - Set maximum acceleration. If "steps per unit" is Change the acc were not recalculated
@@ -210,6 +226,10 @@ void __cxa_pure_virtual(){};
 // M29  - Stop SD write
 //   -  <filename> - Delete file on sd card
 // M42  - Set output on free pins, on a non pwm pin (over pin 13 on an arduino mega) use S255 to turn it on and S0 to turn it off. Use P to decide the pin (M42 P23 S255) would turn pin 23 on
+// M50 - Move z probe to retract position - see define Z_SERVO_RETRACT
+// M51 - Move z probe to active position - see define Z_SERVO_ACTIVE
+// M52 - Move z-probe servo with pulse duration given by S value
+// M53 - Report virtual Z position
 // M80  - Turn on Power Supply
 // M81  - Turn off Power Supply
 // M82  - Set E codes absolute (default)
@@ -248,8 +268,16 @@ void __cxa_pure_virtual(){};
 // M602 - Reset Temp jitter from Extruder (min / max val) --> Don't use it while Printing
 // M603 - Show Free Ram
 
+#ifdef Z_SERVO
+int zservo_npulse = 0;				// output a string of 30 pulses
+unsigned int zservo_duratn = 1400;	//pulse duration in microseconds
+unsigned long zservo_lasttime = 0;	// last time in milliseconds of pulse
+#endif
 
 #define _VERSION_TEXT "1.3.22T / 20.08.2012"
+#ifdef NEW_ZSTOP_CODE
+static bool preserved_z_min_endstop = false;
+#endif
 
 //Stepper Movement Variables
 char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
@@ -687,7 +715,13 @@ void setup()
       fromsd[i] = false;
   }
   
-
+// intialise z-probe servo if required
+#ifdef Z_SERVO
+	WRITE(Z_SERVO_PIN,LOW);			//set servo pin as output and low
+	SET_OUTPUT(Z_SERVO_PIN);
+	zservo_npulse = 0;				//	?Z_SERVO_NPULSES
+	zservo_duratn = Z_SERVO_RETRACT;			//pulse duration in microseconds	
+#endif
   
   //Initialize Dir Pins
   #if X_DIR_PIN > -1
@@ -935,12 +969,43 @@ void loop()
   
   //check heater every n milliseconds
   manage_heater();
+#ifdef Z_SERVO
+  manage_servo();
+#endif
   manage_inactivity(1);
   #if (MINIMUM_FAN_START_SPEED > 0)
     manage_fan_start_speed();
   #endif
-  
+
+// do Z servo if required, may impact on time critical tasks
+#ifdef Z_SERVO
+  manage_servo();
+#endif  
 }
+
+//-----------------------------------------------
+// Provide servo support for z-probe
+// manage servo pulses if set
+//-----------------------------------------------
+
+#ifdef Z_SERVO
+void manage_servo()
+  {
+    unsigned long mm = millis();
+    if(mm - zservo_lasttime > Z_SERVO_PERIOD)
+    {
+      zservo_lasttime = mm;
+      if(zservo_npulse > 0)
+      {
+        digitalWrite(Z_SERVO_PIN,HIGH);
+        delayMicroseconds(zservo_duratn);
+        digitalWrite(Z_SERVO_PIN,LOW);
+        zservo_npulse--;
+      }
+    }
+  }
+
+#endif  
 
 //------------------------------------------------
 //Check Uart buffer while arc function ist calc a circle
@@ -1232,6 +1297,9 @@ FORCE_INLINE void process_commands()
         st_synchronize();  // wait for all movements to finish
         while(millis()  < codenum ){
           manage_heater();
+#ifdef Z_SERVO
+          manage_servo();	// check whether servo needs pulsing on/off etc
+#endif
         }
         break;
       case 28: //G28 Home all Axis one at a time
@@ -1567,6 +1635,10 @@ FORCE_INLINE void process_commands()
             codenum = millis();
           }
           manage_heater();
+#ifdef Z_SERVO
+		  manage_servo();
+#endif
+
           #if (MINIMUM_FAN_START_SPEED > 0)
             manage_fan_start_speed();
           #endif
@@ -1601,11 +1673,14 @@ FORCE_INLINE void process_commands()
             codenum = millis(); 
           }
           manage_heater();
-          #if (MINIMUM_FAN_START_SPEED > 0)
+#ifdef Z_SERVO
+		  manage_servo();		//check whether servo needs pulsing etc
+#endif
+#if (MINIMUM_FAN_START_SPEED > 0)
             manage_fan_start_speed();
-          #endif
+#endif
         }
-      #endif
+#endif
       break;
       #if FAN_PIN > -1
       case 106: //M106 Fan On
@@ -1741,13 +1816,39 @@ FORCE_INLINE void process_commands()
         break;
       case 114: // M114
 	showString(PSTR("X:"));
-        Serial.print(current_position[0]);
+        Serial.print(current_position[0],3);    // decimal places set to 3
 	showString(PSTR("Y:"));
-        Serial.print(current_position[1]);
+        Serial.print(current_position[1],3);    // decimal places set to 3
 	showString(PSTR("Z:"));
-        Serial.print(current_position[2]);
+        Serial.print(current_position[2],3);    // decimal places set to 3
 	showString(PSTR("E:"));
         Serial.println(current_position[3]);
+        break;
+      case 53: // M53 report virtual Z position
+        st_synchronize(); // wait for all movements to finish
+        showString(PSTR("X:"));
+        Serial.print(current_position[0] + virtual_steps_x/axis_steps_per_unit[0],3);
+        showString(PSTR("Y:"));
+        Serial.print(current_position[1] + virtual_steps_y/axis_steps_per_unit[1],3);
+        showString(PSTR("Z:"));
+        Serial.print(current_position[2] + virtual_steps_z/axis_steps_per_unit[2],3);
+        Serial.println();
+        break;
+
+	  case 52:	// M52 send servo position LJM
+		if(code_seen('S'))
+		{
+			zservo_npulse = Z_SERVO_NPULSES;		// output a string of 30 pulses
+			zservo_duratn = code_value();			//pulse duration in microseconds
+		}
+		break;
+	  case 50: // M50 retract z probe servo
+		zservo_npulse = Z_SERVO_NPULSES;
+		zservo_duratn = Z_SERVO_RETRACT;
+		break;
+	  case 51: // M51 put z probe in active position
+		zservo_npulse = Z_SERVO_NPULSES;
+		zservo_duratn = Z_SERVO_ACTIVE;
         break;
       case 119: // M119
       
@@ -3234,7 +3335,18 @@ ISR(TIMER1_COMPA_vect)
       CHECK_ENDSTOPS
       {
         #if Z_MIN_PIN > -1
+// new stop code debounces z min by only allowing transition to true during negative movements
+// this deals with issue of z stop bouncing interfering with virtual position code when
+// z is negative as during z probing
+#ifdef NEW_ZSTOP_CODE
+          bool tentative_z_min_endstop = (READ(Z_MIN_PIN) != Z_ENDSTOP_INVERT);	// see what the physical switch is logically saying
+          // we are moving in negative direction so permit transition to active
+          if(tentative_z_min_endstop)
+             preserved_z_min_endstop = true;
+          bool z_min_endstop = preserved_z_min_endstop;
+#else
           bool z_min_endstop=(READ(Z_MIN_PIN) != Z_ENDSTOP_INVERT);
+#endif
           if(z_min_endstop && old_z_min_endstop && (current_block->steps_z > 0)) {
             if(!is_homing)  
               endstop_z_hit=true;
@@ -3255,7 +3367,16 @@ ISR(TIMER1_COMPA_vect)
       WRITE(Z_DIR_PIN,!INVERT_Z_DIR);
       CHECK_ENDSTOPS
       {
-        #if Z_MAX_PIN > -1
+#ifdef NEW_ZSTOP_CODE
+          bool tentative_z_min_endstop = (READ(Z_MIN_PIN) != Z_ENDSTOP_INVERT);
+          // we are moving in positive direction so permit transition to inactive
+          if(!tentative_z_min_endstop)
+          {
+             preserved_z_min_endstop = false;
+             old_z_min_endstop = false;
+          }      
+#endif
+#if Z_MAX_PIN > -1
           bool z_max_endstop=(READ(Z_MAX_PIN) != Z_ENDSTOP_INVERT);
           if(z_max_endstop && old_z_max_endstop && (current_block->steps_z > 0)) {
             if(!is_homing)
@@ -3268,9 +3389,9 @@ ISR(TIMER1_COMPA_vect)
             endstop_z_hit=false;
           }
           old_z_max_endstop = z_max_endstop;
-        #else
+#else
           endstop_z_hit=false;  
-        #endif
+#endif
       }
     }
 
@@ -3505,6 +3626,9 @@ void st_synchronize()
 {
   while(blocks_queued()) {
     manage_heater();
+#ifdef Z_SERVO
+    manage_servo();
+#endif
     manage_inactivity(1);
     #if (MINIMUM_FAN_START_SPEED > 0)
       manage_fan_start_speed();

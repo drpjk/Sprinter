@@ -1,3 +1,7 @@
+THIS REPOSITORY WAS FORKED FROM KLIMENT AND MODIFIED TO CUSTOMIZE FOR MY PRINTER.
+IT MAY NOT BE SUITABLE FOR GENERAL USE.
+
+
 The leading developers of Sprinter are currently Kliment, caru and midopple, though many others contribute with their patches.
 
 This is a firmware for RAMPS and other reprap single-processor electronics setups. It supports printing from SD card, active heatbed control, and ATmega internal pullups.

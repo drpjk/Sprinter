@@ -69,6 +69,7 @@ const short temptable_1[NUMTEMPS_1][2] = {
 {	1008	,	0	} //safety
 };
 #endif
+
 #if (THERMISTORHEATER == 2) || (THERMISTORBED == 2) //200k bed thermistor verified by arcol
 #define NUMTEMPS_2 64
 const short temptable_2[NUMTEMPS_2][2] = {
@@ -139,6 +140,7 @@ const short temptable_2[NUMTEMPS_2][2] = {
 };
 
 #endif
+
 #if (THERMISTORHEATER == 3) || (THERMISTORBED == 3) //mendel-parts
 #define NUMTEMPS_3 28
 const short temptable_3[NUMTEMPS_3][2] = {
@@ -173,8 +175,8 @@ const short temptable_3[NUMTEMPS_3][2] = {
 	};
 
 #endif
-#if (THERMISTORHEATER == 4) || (THERMISTORBED == 4) //10k thermistor
 
+#if (THERMISTORHEATER == 4) || (THERMISTORBED == 4) //10k thermistor
 #define NUMTEMPS_4 20
 const short temptable_4[NUMTEMPS_4][2] = {
    {1, 430},
@@ -201,7 +203,6 @@ const short temptable_4[NUMTEMPS_4][2] = {
 #endif
 
 #if (THERMISTORHEATER == 5) || (THERMISTORBED == 5) //100k ParCan thermistor (104GT-2)
-
 #define NUMTEMPS_5 61
 const short temptable_5[NUMTEMPS_5][2] = {
 {1, 713},
@@ -368,11 +369,176 @@ const short temptable_7[NUMTEMPS_7][2] = {
    {1001, 10},
    {1005, 5},
    {1021, 0} //safety
-
 };
 #endif
 
+#if (THERMISTORHEATER == 10) || (THERMISTORBED == 10) 
+//100k bed thermistor
+// Thermistor lookup table for RepRap Temperature Sensor Boards (http://make.rrrf.org/ts)
+// Made with createTemperatureLookup.py (http://svn.reprap.org/trunk/reprap/firmware/Arduino/utilities/createTemperatureLookup.py)
+// ./createTemperatureLookup.py --r0=100000 --t0=25 --r1=0 --r2=4700 --beta=3950 --max-adc=1023
+// r0: 100000
+// t0: 25
+// r1: 0
+// r2: 4700
+// beta: 3950
+// max adc: 1023
 
+#define NUMTEMPS_10 103
+const short temptable_10[NUMTEMPS_10][2] = {
+   {1, 938},
+   {11, 423},
+   {21, 351},
+   {31, 314},
+   {41, 290},
+   {51, 272},
+   {61, 258},
+   {71, 247},
+   {81, 237},
+   {91, 229},
+   {101, 221},
+   {111, 215},
+   {121, 209},
+   {131, 204},
+   {141, 199},
+   {151, 195},
+   {161, 190},
+   {171, 187},
+   {181, 183},
+   {191, 179},
+   {201, 176},
+   {211, 173},
+   {221, 170},
+   {231, 167},
+   {241, 165},
+   {251, 162},
+   {261, 160},
+   {271, 157},
+   {281, 155},
+   {291, 153},
+   {301, 150},
+   {311, 148},
+   {321, 146},
+   {331, 144},
+   {341, 142},
+   {351, 140},
+   {361, 139},
+   {371, 137},
+   {381, 135},
+   {391, 133},
+   {401, 131},
+   {411, 130},
+   {421, 128},
+   {431, 126},
+   {441, 125},
+   {451, 123},
+   {461, 122},
+   {471, 120},
+   {481, 119},
+   {491, 117},
+   {501, 116},
+   {511, 114},
+   {521, 113},
+   {531, 111},
+   {541, 110},
+   {551, 108},
+   {561, 107},
+   {571, 105},
+   {581, 104},
+   {591, 102},
+   {601, 101},
+   {611, 100},
+   {621, 98},
+   {631, 97},
+   {641, 95},
+   {651, 94},
+   {661, 92},
+   {671, 91},
+   {681, 90},
+   {691, 88},
+   {701, 87},
+   {711, 85},
+   {721, 84},
+   {731, 82},
+   {741, 81},
+   {751, 79},
+   {761, 77},
+   {771, 76},
+   {781, 74},
+   {791, 72},
+   {801, 71},
+   {811, 69},
+   {821, 67},
+   {831, 65},
+   {841, 63},
+   {851, 62},
+   {861, 60},
+   {871, 57},
+   {881, 55},
+   {891, 53},
+   {901, 51},
+   {911, 48},
+   {921, 45},
+   {931, 42},
+   {941, 39},
+   {951, 36},
+   {961, 32},
+   {971, 28},
+   {981, 23},
+   {991, 17},
+   {1001, 9},
+   {1011, -1},
+   {1021, -26}
+};
+#endif
+
+#if (THERMISTORHEATER == 11) || (THERMISTORBED == 11)
+// LJM
+//Thermistor lookup table based on full Steinhart-Hart equation including quadratic term.
+//   1/T = A + B.ln(R) + C.ln(R)^2 + D.ln(R)^3 (ln is natural log, T in kelvin, R in kilohms.
+// Coefficients:
+//   A: 2.22319060E-003
+//   B: 2.22223700E-004
+//   C: 4.00162697E-006
+//   D: 0.00000000E+000
+// Load resistor: 4650.000 ohm.
+// ADC 0 - 1022 with 1024 corresponding to supply voltage of rload.
+#define NUMTEMPS_11 32
+const short temptable_11[NUMTEMPS_11][2] = {
+   {1, 560},
+   {2, 494},
+   {3, 457},
+   {4, 432},
+   {6, 398},
+   {9, 366},
+   {11, 350},
+   {15, 328},
+   {17, 319},
+   {20, 308},
+   {22, 301},
+   {28, 285},
+   {34, 273},
+   {43, 258},
+   {55, 243},
+   {68, 231},
+   {91, 214},
+   {128, 195},
+   {168, 181},
+   {178, 177},
+   {219, 166},
+   {282, 152},
+   {352, 139},
+   {428, 127},
+   {767, 79},
+   {839, 67},
+   {916, 50},
+   {965, 33},
+   {995, 16},
+   {1014, -7},
+   {1019, -21},
+   {1022, -40}
+};
+#endif
 
 #if THERMISTORHEATER == 1
 #define NUMTEMPS NUMTEMPS_1
@@ -395,9 +561,16 @@ const short temptable_7[NUMTEMPS_7][2] = {
 #elif THERMISTORHEATER == 7
 #define NUMTEMPS NUMTEMPS_7
 #define temptable temptable_7
+#elif THERMISTORHEATER == 10
+#define NUMTEMPS NUMTEMPS_10
+#define temptable temptable_10
+#elif THERMISTORHEATER == 11
+#define NUMTEMPS NUMTEMPS_11
+#define temptable temptable_11
 #elif defined HEATER_USES_THERMISTOR
 #error No heater thermistor table specified
 #endif
+
 #if THERMISTORBED == 1
 #define BNUMTEMPS NUMTEMPS_1
 #define bedtemptable temptable_1
@@ -419,6 +592,12 @@ const short temptable_7[NUMTEMPS_7][2] = {
 #elif THERMISTORBED == 7
 #define BNUMTEMPS NUMTEMPS_7
 #define bedtemptable temptable_7
+#elif THERMISTORBED == 10
+#define BNUMTEMPS NUMTEMPS_10
+#define bedtemptable temptable_10
+#elif THERMISTORBED == 11
+#define BNUMTEMPS NUMTEMPS_11
+#define bedtemptable temptable_11
 #elif defined BED_USES_THERMISTOR
 #error No bed thermistor table specified
 #endif

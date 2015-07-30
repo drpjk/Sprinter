@@ -27,34 +27,83 @@
 // 5 is ParCan supplied 104GT-2 100K
 // 6 is EPCOS 100k
 // 7 is 100k Honeywell thermistor 135-104LAG-J01
-#define THERMISTORHEATER 1
-#define THERMISTORBED 1
+#define THERMISTORHEATER 11
+#define THERMISTORBED 11
+
+//// The following define select which printer is being used
+// 1 Metric Prusa Mendel with Wades Extruder
+// 2 Metric Prusa Mendel with Makergear geared stepper extruder
+// 3 MakerGear Hybrid Prusa Mendel
+// 4 Banggood Prusa Mendel
+// 5 Prusa I3
+#define PRINTER 5
+
+//// Set the following #define to include z servo code
+#define Z_SERVO
+#ifdef Z_SERVO
+#if ( PRINTER == 4 )
+// use servo 2 pin 6 for z-probe.  servo 1 undergoes activity during initialisation, prob SPI
+#define Z_SERVO_PIN 6
+#define Z_SERVO_PERIOD 20
+#define Z_SERVO_RETRACT 540
+#define Z_SERVO_ACTIVE 1460
+#define Z_SERVO_NPULSES 50
+
+#elif ( PRINTER == 5 )
+// use servo 2 pin 6 for z-probe.  servo 1 undergoes activity during initialisation, prob SPI
+#define Z_SERVO_PIN 6
+#define Z_SERVO_PERIOD 20
+#define Z_SERVO_RETRACT 1500
+#define Z_SERVO_ACTIVE 600
+#define Z_SERVO_NPULSES 50
+
+#else
+#error PRINTER not Specified in configuration.h
+#endif 
+#endif
+
+//// Set the following #define to include new zstop code to deal with bounce
+#define NEW_ZSTOP_CODE
 
 //// Calibration variables
-// X, Y, Z, E steps per unit - Metric Prusa Mendel with Wade extruder:
+// X, Y, Z, E steps per unit - 
+#if ( PRINTER == 1 )
+// Metric Prusa Mendel with Wade extruder: was this one 
 #define _AXIS_STEP_PER_UNIT {80, 80, 3200/1.25,700}
+#elif ( PRINTER == 2 )
 // Metric Prusa Mendel with Makergear geared stepper extruder:
-//#define _AXIS_STEP_PER_UNIT {80,80,3200/1.25,1380}
+#define _AXIS_STEP_PER_UNIT {80,80,3200/1.25,1380}
+#elif ( PRINTER == 3 )
 // MakerGear Hybrid Prusa Mendel:
 // Z axis value is for .9 stepper(if you have 1.8 steppers for Z, you need to use 2272.7272)
-//#define _AXIS_STEP_PER_UNIT {104.987, 104.987, 4545.4544, 1487}
-
+#define _AXIS_STEP_PER_UNIT {104.987, 104.987, 4545.4544, 1487}
+#elif ( PRINTER == 4 )
+// taken from Mendel-Melzi configuration, with 'float' replaced by '#define'
+#define _AXIS_STEP_PER_UNIT {85.3333, 85.3333,2560,178.000 }    //172 E was 158.8308} 196 for abs nom 260 = 240?
+#elif ( PRINTER == 5 )
+//Prusa-I3 X & Y 16x200 steps= 20x2 mm   ==> 80
+//Prusa-I3 Z 16x200 steps = 25.4/32 mm   ==>   4031.496
+//Prusa-I3 E 16x200 x 43/11 steps  = pi x 7.45 ==> 528. Adjust down 8% after cal on thin wall.
+#define _AXIS_STEP_PER_UNIT {80, 80 , 4031.496, 485 }    //172 E was 158.8308}  196 for abs nom 260 = 240?
+#else
+#error Printer Not Specified
+#endif
 
 //// Endstop Settings
 #define ENDSTOPPULLUPS // Comment this out (using // at the start of the line) to disable the endstop pullup resistors
 // The pullups are needed if you directly connect a mechanical endswitch between the signal and ground pins.
 //If your axes are only moving in one direction, make sure the endstops are connected properly.
 //If your axes move in one direction ONLY when the endstops are triggered, set [XYZ]_ENDSTOP_INVERT to true here:
-const bool X_ENDSTOP_INVERT = false;
-const bool Y_ENDSTOP_INVERT = false;
-const bool Z_ENDSTOP_INVERT = false;
+const bool X_ENDSTOP_INVERT = true;
+const bool Y_ENDSTOP_INVERT = true;
+const bool Z_ENDSTOP_INVERT = true;
 
 // This determines the communication speed of the printer
 #define BAUDRATE 115200
 //#define BAUDRATE 250000
 
 // Comment out (using // at the start of the line) to disable SD support:
-#define SDSUPPORT
+//#define SDSUPPORT 
 
 // Uncomment to make run init.g from SD on boot
 //#define SDINITFILE
@@ -111,17 +160,26 @@ const bool Z_ENDSTOP_INVERT = false;
 //-----------------------------------------------------------------------
 const bool DISABLE_X = false;
 const bool DISABLE_Y = false;
-const bool DISABLE_Z = true;
+const bool DISABLE_Z = false;
 const bool DISABLE_E = false;
 
 //-----------------------------------------------------------------------
 // Inverting axis direction
 //-----------------------------------------------------------------------
+#if (PRINTER == 4 )
 const bool INVERT_X_DIR = false;
 const bool INVERT_Y_DIR = false;
-const bool INVERT_Z_DIR = true;
-const bool INVERT_E_DIR = false;
+const bool INVERT_Z_DIR = false;
+const bool INVERT_E_DIR = true;
+#elif ( PRINTER == 5 )
+const bool INVERT_X_DIR = false;
+const bool INVERT_Y_DIR = true;     // was false in banggood prusa-mendel
+const bool INVERT_Z_DIR = true;    //  was false for banggood prusa-mendel 
+const bool INVERT_E_DIR = false;    // need true for bangood prusa-mendel
 
+#else
+#error Printer Axis Direction not specified
+#endif
 //-----------------------------------------------------------------------
 //// ENDSTOP SETTINGS:
 //-----------------------------------------------------------------------
@@ -135,20 +193,31 @@ const bool INVERT_E_DIR = false;
 const bool min_software_endstops = false; //If true, axis won't move to coordinates less than zero.
 const bool max_software_endstops = true; //If true, axis won't move to coordinates greater than the defined lengths below.
 
-
+// Axes Length
+#if (PRINTER == 4 )
 //-----------------------------------------------------------------------
 //Max Length for Prusa Mendel, check the ways of your axis and set this Values
 //-----------------------------------------------------------------------
 const int X_MAX_LENGTH = 200;
 const int Y_MAX_LENGTH = 200;
 const int Z_MAX_LENGTH = 100;
-
+#elif (PRINTER == 5 )
+//-----------------------------------------------------------------------
+//Max Length for Prusa I3, check the ways of your axis and set this Values
+//-----------------------------------------------------------------------
+const int X_MAX_LENGTH = 210;
+const int Y_MAX_LENGTH = 210;
+const int Z_MAX_LENGTH = 190;
+#else
+#error Axes Length Not Specified
+#endif
 //-----------------------------------------------------------------------
 //// MOVEMENT SETTINGS
 //-----------------------------------------------------------------------
 const int NUM_AXIS = 4; // The axis order in all axis related arrays is X, Y, Z, E
-#define _MAX_FEEDRATE {400, 400, 2, 45}       // (mm/sec)    
-#define _HOMING_FEEDRATE {1500,1500,120}      // (mm/min) !!
+#define _MAX_FEEDRATE {200, 200, 3, 45}  // (mm/sec)  taken from mendel-melzi   
+#define _HOMING_FEEDRATE {1500,1500,120}      // (mm/min) !! taken from mendel-melzi
+
 #define _AXIS_RELATIVE_MODES {false, false, false, false}
 
 #define MAX_STEP_FREQUENCY 30000 // Max step frequency
@@ -297,9 +366,9 @@ const int dropsegments=5; //everything with less than this number of steps will 
 
 //PID Controler Settings
 #define PID_INTEGRAL_DRIVE_MAX 80 // too big, and heater will lag after changing temperature, too small and it might not compensate enough for long-term errors
-#define PID_PGAIN 2560 //256 is 1.0  // value of X means that error of 1 degree is changing PWM duty by X, probably no need to go over 25
-#define PID_IGAIN 64 //256 is 1.0  // value of X (e.g 0.25) means that each degree error over 1 sec (2 measurements) changes duty cycle by 2X (=0.5) units (verify?)
-#define PID_DGAIN 4096 //256 is 1.0  // value of X means that around reached setpoint, each degree change over one measurement (half second) adjusts PWM by X units to compensate
+#define PID_PGAIN 1401 //2560 //256 is 1.0  // value of X means that error of 1 degree is changing PWM duty by X, probably no need to go over 25
+#define PID_IGAIN 30 //64 //256 is 1.0  // value of X (e.g 0.25) means that each degree error over 1 sec (2 measurements) changes duty cycle by 2X (=0.5) units (verify?)
+#define PID_DGAIN 4071 //4096 //256 is 1.0  // value of X means that around reached setpoint, each degree change over one measurement (half second) adjusts PWM by X units to compensate
 
 // magic formula 1, to get approximate "zero error" PWM duty. Take few measurements with low PWM duty and make linear fit to get the formula
 // for my makergear hot-end: linear fit {50,10},{60,20},{80,30},{105,50},{176,100},{128,64},{208,128}
@@ -369,7 +438,7 @@ const int dropsegments=5; //everything with less than this number of steps will 
 //#define EXTRUDERFAN_PIN 66 //Pin used to control the fan, comment out to disable this function
 #define EXTRUDERFAN_DEC 50 //Hotend temperature from where the fan will be turned on
 
-//#define CHAIN_OF_COMMAND 1 //Finish buffered moves before executing M42, fan speed, heater target, and so...
+#define CHAIN_OF_COMMAND 1 //Finish buffered moves before executing M42, fan speed, heater target, and so...
 
 //-----------------------------------------------------------------------
 // DEBUGING
