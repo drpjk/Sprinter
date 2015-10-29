@@ -40,7 +40,9 @@
 
 //// Set the following #define to include z servo code
 #define Z_SERVO
+// includes a G5 dwell command with option T servo width
 #ifdef Z_SERVO
+#define Z_SERVO_DWELL
 #if ( PRINTER == 4 )
 // use servo 2 pin 6 for z-probe.  servo 1 undergoes activity during initialisation, prob SPI
 #define Z_SERVO_PIN 6
@@ -61,6 +63,9 @@
 #error PRINTER not Specified in configuration.h
 #endif 
 #endif
+
+// set define for M53/M54 statistics calculation and reporting
+#define M53STATS
 
 //// Set the following #define to include new zstop code to deal with bounce
 #define NEW_ZSTOP_CODE

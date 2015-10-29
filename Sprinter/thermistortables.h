@@ -493,7 +493,6 @@ const short temptable_10[NUMTEMPS_10][2] = {
 #endif
 
 #if (THERMISTORHEATER == 11) || (THERMISTORBED == 11)
-// LJM
 //Thermistor lookup table based on full Steinhart-Hart equation including quadratic term.
 //   1/T = A + B.ln(R) + C.ln(R)^2 + D.ln(R)^3 (ln is natural log, T in kelvin, R in kilohms.
 // Coefficients:

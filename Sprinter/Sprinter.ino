@@ -20,12 +20,15 @@ the following modes are included by #define Z_SERVO
 to give parameters for a servo that moves a z-stop switch into position
 below the hothead.
 
+G5 PmmmSsssTwww  dwells as per G4 and also sets servo to pulse width www
 M50 Servo Out
 M51 Servo In
 M52 z-probe servo position, S has pulse duration in microsecond
 thermistor table1 edited to match Melzi table but with 4.7k pullup
 The following mods are included by #define NEW_ZSTOP_CODE in configuration.h
 M53 virtual z reporting
+M54 virtual Z statistics and reporting
+M55 virtual Z statistics reset
 M114 Extra decimal places on position reporting
 debounce z stop
  
@@ -200,6 +203,7 @@ void __cxa_pure_virtual(){};
 // G2  - CW ARC
 // G3  - CCW ARC
 // G4  - Dwell S<seconds> or P<milliseconds>
+// G5  - Dwell S<seconds> or P<milliseconds> T servo width
 // G28 - Home all Axis
 // G90 - Use Absolute Coordinates
 // G91 - Use Relative Coordinates
@@ -230,6 +234,8 @@ void __cxa_pure_virtual(){};
 // M51 - Move z probe to active position - see define Z_SERVO_ACTIVE
 // M52 - Move z-probe servo with pulse duration given by S value
 // M53 - Report virtual Z position
+// M54 - Report virtual Z position statistics
+// M55 - Reset virtual Z position statistics
 // M80  - Turn on Power Supply
 // M81  - Turn off Power Supply
 // M82  - Set E codes absolute (default)
@@ -348,6 +354,15 @@ bool is_homing = false;
 //experimental feedrate calc
 //float d = 0;
 //float axis_diff[NUM_AXIS] = {0, 0, 0, 0};
+
+// storage for M53/M54 statistics
+#ifdef M53STATS
+float M53sum = 0;
+float M53sumsq = 0;
+int   M53num = 0;
+float M53min = 10000.0;    // tood, find min max float constants
+float M53max = -10000.0;
+#endif
 
 
 #ifdef USE_ARC_FUNCTION
@@ -1302,6 +1317,25 @@ FORCE_INLINE void process_commands()
 #endif
         }
         break;
+#ifdef Z_SERVO_DWELL            // include G5 dwell command with servo option
+      case 5: // G5 dwell
+        codenum = 0;
+        if(code_seen('P')) codenum = code_value(); // milliseconds to wait
+        if(code_seen('S')) codenum = code_value() * 1000; // seconds to wait
+        codenum += millis();  // keep track of when we started waiting
+        if(code_seen('T'))
+        {
+            zservo_npulse = Z_SERVO_NPULSES;	// output a string of 30 pulses
+	    zservo_duratn = code_value();	//pulse duration in microseconds
+        }
+        st_synchronize();  // wait for all movements to finish
+        while(millis()  < codenum ){
+          manage_heater();
+
+          manage_servo();	// check whether servo needs pulsing on/off etc
+#endif
+        }
+        break;
       case 28: //G28 Home all Axis one at a time
         saved_feedrate = feedrate;
         saved_feedmultiply = feedmultiply;
@@ -1831,10 +1865,55 @@ FORCE_INLINE void process_commands()
         showString(PSTR("Y:"));
         Serial.print(current_position[1] + virtual_steps_y/axis_steps_per_unit[1],3);
         showString(PSTR("Z:"));
-        Serial.print(current_position[2] + virtual_steps_z/axis_steps_per_unit[2],3);
+        float virt_z_pos;
+        virt_z_pos = current_position[2] + virtual_steps_z/axis_steps_per_unit[2];
+        Serial.print(virt_z_pos,3);
+#ifdef M53STATS
+        M53sum += virt_z_pos;
+        M53sumsq += virt_z_pos * virt_z_pos;
+        if(virt_z_pos > M53max)
+          M53max = virt_z_pos;
+        if(virt_z_pos < M53min)
+          M53min = virt_z_pos;
+          
+        M53num++;
+#endif
         Serial.println();
         break;
+#ifdef M53STATS
+float virt_z_mean;
+float virt_z_sd;
 
+        case 54:        // calculate M53 Z position statistics, print
+          if(M53num > 0)
+          {
+              virt_z_mean = M53sum/M53num;
+              showString(PSTR("Ave Z:"));
+              Serial.print(virt_z_mean,3);
+              virt_z_sd = sqrt(M53sumsq/M53num - virt_z_mean*virt_z_mean);
+              showString(PSTR(", SD:"));
+              Serial.print(virt_z_sd,3);
+              showString(PSTR(", Min:"));
+              Serial.print(M53min,3);
+              showString(PSTR(", Max:"));
+              Serial.print(M53max,3);
+          }
+          else
+          {
+            showString(PSTR("No Z stats."));
+          }
+          Serial.println();
+          break;
+        case 55:      // reset statistics
+          {
+              M53sum = 0.0;
+              M53num = 0;
+              M53sumsq = 0.0;
+              M53min = 10000.0;
+              M53max = -10000.0;
+          }
+          break;                                                                      
+#endif
 	  case 52:	// M52 send servo position LJM
 		if(code_seen('S'))
 		{
