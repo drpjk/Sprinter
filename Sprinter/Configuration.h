@@ -56,7 +56,7 @@
 #define Z_SERVO_PIN 6
 #define Z_SERVO_PERIOD 20
 #define Z_SERVO_RETRACT 1500
-#define Z_SERVO_ACTIVE 600
+#define Z_SERVO_ACTIVE 700
 #define Z_SERVO_NPULSES 50
 
 #else
