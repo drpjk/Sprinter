@@ -748,10 +748,16 @@ void PID_autotune(int PIDAT_test_temp)
   #endif
     {
       WRITE(HEATER_1_PIN,LOW);
+  #ifdef BED_DUTY_CYCLE
+      bed_heater_status = 0;
+  #endif
     }
     else 
     {
       WRITE(HEATER_1_PIN,HIGH);
+  #ifdef BED_DUTY_CYCLE
+      bed_heater_status = 1;
+  #endif
     }
     #endif
     

@@ -997,9 +997,6 @@ void loop()
 #ifdef BED_DUTY_CYCLE
   manage_bed_duty_cycle();
 #endif
-//#ifdef Z_SERVO
-//  manage_servo();
-//#endif
   manage_inactivity(1);
   #if (MINIMUM_FAN_START_SPEED > 0)
     manage_fan_start_speed();
