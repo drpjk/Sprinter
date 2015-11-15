@@ -74,6 +74,17 @@ extern int current_bed_raw;
 extern unsigned long previous_millis_heater, previous_millis_bed_heater;
 extern unsigned char manage_monitor;
 
+#ifdef BED_DUTY_CYCLE
+extern  int bed_heater_status;
+#endif
+#ifdef BED_DUTY_CYCLE
+extern unsigned long bed_off;
+extern unsigned long bed_on;
+#endif
+#ifdef TIMER2_INTERRUPT_ROUTINE
+extern void timer2_interrupt_service();  
+#endif  
+
 #ifdef PIDTEMP
   extern volatile unsigned char g_heater_pwm_val;
  

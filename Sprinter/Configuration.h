@@ -38,6 +38,13 @@
 // 5 Prusa I3
 #define PRINTER 5
 
+// record and display bed heater duty cycle
+#define BED_DUTY_CYCLE
+#define BED_DUTY_CYCLE_PERIOD 200
+
+// define hook into timer2 (500 Hz) to use for slow z probing
+//#define TIMER2_INTERRUPT_ROUTINE
+
 //// Set the following #define to include z servo code
 #define Z_SERVO
 // includes a G5 dwell command with option T servo width
@@ -387,7 +394,8 @@ const int dropsegments=5; //everything with less than this number of steps will 
 
 // How often should the heater check for new temp readings, in milliseconds
 #define HEATER_CHECK_INTERVAL 500
-#define BED_CHECK_INTERVAL 5000
+// bed check was 5000, make 1000 for better statistics on duty cycle M56SOFT_PWMSOFT_PWMSOFT_PWMSOFT_PWM
+#define BED_CHECK_INTERVAL 1000
 
 // Comment the following line to enable heat management during acceleration
 #define DISABLE_CHECK_DURING_ACC

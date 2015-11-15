@@ -29,9 +29,12 @@ The following mods are included by #define NEW_ZSTOP_CODE in configuration.h
 M53 virtual z reporting
 M54 virtual Z statistics and reporting
 M55 virtual Z statistics reset
+M56 bed duty cycle reporting
+
 M114 Extra decimal places on position reporting
 debounce z stop
- 
+G92 R flag indicates a relative offset rather than absolute position for resetting coordinates
+
 *********/
 
 /*
@@ -207,7 +210,7 @@ void __cxa_pure_virtual(){};
 // G28 - Home all Axis
 // G90 - Use Absolute Coordinates
 // G91 - Use Relative Coordinates
-// G92 - Set current position to cordinates given
+// G92 - Set current position to cordinates given, R means Relative (if G92R is defined)
 
 //RepRap M Codes
 // M104 - Set extruder target temp
@@ -236,6 +239,7 @@ void __cxa_pure_virtual(){};
 // M53 - Report virtual Z position
 // M54 - Report virtual Z position statistics
 // M55 - Reset virtual Z position statistics
+// M56 - Report bed heater duty cycle and reset counters
 // M80  - Turn on Power Supply
 // M81  - Turn off Power Supply
 // M82  - Set E codes absolute (default)
@@ -364,6 +368,12 @@ float M53min = 10000.0;    // tood, find min max float constants
 float M53max = -10000.0;
 #endif
 
+#ifdef BED_DUTY_CYCLE
+int bed_heater_status;
+unsigned long bed_off;
+unsigned long bed_on;
+unsigned long bed_duty_cycle_next_time = 0;
+#endif
 
 #ifdef USE_ARC_FUNCTION
 //For arc center point coordinates, sent by commands G2/G3
@@ -984,9 +994,12 @@ void loop()
   
   //check heater every n milliseconds
   manage_heater();
-#ifdef Z_SERVO
-  manage_servo();
+#ifdef BED_DUTY_CYCLE
+  manage_bed_duty_cycle();
 #endif
+//#ifdef Z_SERVO
+//  manage_servo();
+//#endif
   manage_inactivity(1);
   #if (MINIMUM_FAN_START_SPEED > 0)
     manage_fan_start_speed();
@@ -1021,7 +1034,22 @@ void manage_servo()
   }
 
 #endif  
-
+// accumulate bed heater duty cycle statistics
+#ifdef BED_DUTY_CYCLE
+  void manage_bed_duty_cycle()
+  {
+    unsigned long t;
+    t = millis();
+    if(t > bed_duty_cycle_next_time)
+    {
+      bed_duty_cycle_next_time = t + BED_DUTY_CYCLE_PERIOD;  
+      if(bed_heater_status)
+        bed_on++;
+      else
+        bed_off++;
+    }
+  }
+#endif
 //------------------------------------------------
 //Check Uart buffer while arc function ist calc a circle
 //------------------------------------------------
@@ -1274,7 +1302,9 @@ FORCE_INLINE void process_commands()
 {
   unsigned long codenum; //throw away variable
   char *starpos = NULL;
-
+#ifdef G92R
+  uint8_t G92Rflag = 0;  // R present on G92 command - means relative coords given
+#endif
   if(code_seen('G'))
   {
     switch((int)code_value())
@@ -1315,6 +1345,9 @@ FORCE_INLINE void process_commands()
 #ifdef Z_SERVO
           manage_servo();	// check whether servo needs pulsing on/off etc
 #endif
+#ifdef BED_DUTY_CYCLE
+          manage_bed_duty_cycle();
+#endif
         }
         break;
 #ifdef Z_SERVO_DWELL            // include G5 dwell command with servo option
@@ -1333,6 +1366,9 @@ FORCE_INLINE void process_commands()
           manage_heater();
 
           manage_servo();	// check whether servo needs pulsing on/off etc
+#endif
+#ifdef BED_DUTY_CYCLE
+          manage_bed_duty_cycle();
 #endif
         }
         break;
@@ -1382,10 +1418,23 @@ FORCE_INLINE void process_commands()
       case 92: // G92
         if(!code_seen(axis_codes[E_AXIS])) 
           st_synchronize();
+#ifdef G92R
+        G92Rflag = code_seen('R');  // R present on G92 command - means relative coords given
+#endif
           
         for(int i=0; i < NUM_AXIS; i++)
         {
-          if(code_seen(axis_codes[i])) current_position[i] = code_value();  
+#ifdef G92R
+          if(code_seen(axis_codes[i]))
+          {
+            if(G92Rflag)
+              current_position[i] = current_position[i] + code_value();
+            else
+              current_position[i] = code_value();
+          }
+#else
+          if(code_seen(axis_codes[i])) current_position[i] = code_value();
+#endif  
         }
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         break;
@@ -1669,6 +1718,9 @@ FORCE_INLINE void process_commands()
             codenum = millis();
           }
           manage_heater();
+#ifdef BED_DUTY_CYCLE
+          manage_bed_duty_cycle();
+#endif
 #ifdef Z_SERVO
 		  manage_servo();
 #endif
@@ -1707,6 +1759,9 @@ FORCE_INLINE void process_commands()
             codenum = millis(); 
           }
           manage_heater();
+#ifdef BED_DUTY_CYCLE
+          manage_bed_duty_cycle();
+#endif
 #ifdef Z_SERVO
 		  manage_servo();		//check whether servo needs pulsing etc
 #endif
@@ -1914,6 +1969,74 @@ float virt_z_sd;
           }
           break;                                                                      
 #endif
+#ifdef BED_DUTY_CYCLE
+        case 56:      // report and reset bed heater duty cycle statistics
+          {
+            double bed_duty_cycle;
+            if(bed_on == 0 && bed_off == 0)
+            {
+              showString(PSTR("No duty cycle stats."));
+            }
+            else
+            {
+              bed_duty_cycle = 100.0*bed_on/((double)(bed_on + bed_off));
+              showString(PSTR("Bed Duty Cycle:"));
+              Serial.print(bed_duty_cycle,1);
+              showString(PSTR("%"));
+              bed_on = bed_off = 0;
+            }
+            Serial.println();
+          }
+        break;
+#endif
+#ifdef TIMER2_INTERRUPT_ROUTINE
+        case 57:
+          {
+               st_synchronize();
+               showString(PSTR("Probing Down"));
+               iprobe = 0;
+               n_up_probe = 0;
+               n_dn_probe = 32;
+               Serial.println();
+               delay(80);
+               Serial.println(iprobe,DEC);
+               if(n_dn_probe == 0)
+               {
+                 for(uint8_t k = 0; k < iprobe; k++)
+                 {
+                   Serial.print(current_position[2] - (double)k/axis_steps_per_unit[2],4);
+                   showString(PSTR(": "));
+                   Serial.println(probes[k],DEC);                   
+                 }
+               }
+               current_position[2] -= 32 * axis_steps_per_unit[2];
+               
+          }
+        break;
+        case 58:
+          {
+               st_synchronize();
+               showString(PSTR("Probing Up"));
+               iprobe = 0;
+               n_dn_probe = 0;
+               n_up_probe = 32;
+               Serial.println();
+               delay(80);
+               Serial.println(iprobe,DEC);
+               if(n_up_probe == 0)
+               {
+                 for(uint8_t k = 0; k < iprobe; k++)
+                 {
+                   Serial.print(current_position[2] + (double)k/axis_steps_per_unit[2],4);
+                   showString(PSTR(": "));
+                   Serial.println(probes[k],DEC);                   
+                 }
+               }
+               current_position[2] += 32 * axis_steps_per_unit[2];
+          }
+        break;
+#endif
+
 	  case 52:	// M52 send servo position LJM
 		if(code_seen('S'))
 		{
@@ -2693,6 +2816,9 @@ void plan_buffer_line(float x, float y, float z, float e, float feed_rate)
   // Rest here until there is room in the buffer.
   while(block_buffer_tail == next_buffer_head) { 
     manage_heater(); 
+#ifdef BED_DUTY_CYCLE
+    manage_bed_duty_cycle();
+#endif
     manage_inactivity(1); 
     #if (MINIMUM_FAN_START_SPEED > 0)
       manage_fan_start_speed();
@@ -3705,6 +3831,9 @@ void st_synchronize()
 {
   while(blocks_queued()) {
     manage_heater();
+#ifdef BED_DUTY_CYCLE
+    manage_bed_duty_cycle();
+#endif
 #ifdef Z_SERVO
     manage_servo();
 #endif
