@@ -89,7 +89,7 @@
 //Prusa-I3 X & Y 16x200 steps= 20x2 mm   ==> 80
 //Prusa-I3 Z 16x200 steps = 25.4/32 mm   ==>   4031.496
 //Prusa-I3 E 16x200 x 43/11 steps  = pi x 7.45 ==> 534. Adjust down 8% after cal on thin wall.
-#define _AXIS_STEP_PER_UNIT {80, 80 , 4031.496, 485 }
+#define _AXIS_STEP_PER_UNIT {80, 80 , 4031.496, 595 }
 #else
 #error Printer Not Specified
 #endif
