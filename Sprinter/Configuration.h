@@ -37,6 +37,7 @@
 // 4 Banggood Prusa Mendel
 // 5 Prusa I3
 #define PRINTER 5
+#define G92R
 
 // record and display bed heater duty cycle
 #define BED_DUTY_CYCLE
